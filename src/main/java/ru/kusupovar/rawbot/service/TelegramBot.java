@@ -22,7 +22,7 @@ import java.util.Objects;
 public class TelegramBot extends TelegramLongPollingBot {
 
     final BotConfig botConfig;
-    File kozel = new File("src/img/kozel.jpg");
+    File kozel = new File("C:\\Users\\6JIu33apd\\Documents\\kozel.jpg");
 
     public TelegramBot(BotConfig botConfig) {
         this.botConfig = botConfig;
