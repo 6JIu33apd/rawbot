@@ -1,28 +1,32 @@
 package ru.kusupovar.rawbot.service;
 
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
-import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import ru.kusupovar.rawbot.config.BotConfig;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Objects;
+import java.util.*;
 
 @Slf4j
 @Component
 public class TelegramBot extends TelegramLongPollingBot {
-
+    private final Set<Long> subscribers = new HashSet<>();
+    private final LinkedList<Double> rates = new LinkedList<>();
+    private final OkHttpClient httpClient = new OkHttpClient();
+    private String latestValue;
     final BotConfig botConfig;
-    File kozel = new File("C:\\Users\\6JIu33apd\\Documents\\kozel.jpg");
 
     public TelegramBot(BotConfig botConfig) {
         this.botConfig = botConfig;
@@ -42,35 +46,98 @@ public class TelegramBot extends TelegramLongPollingBot {
     public void onUpdateReceived(Update update) {
 
         if (update.hasMessage() && update.getMessage().hasText()) {
-
-            log.info("Message from chatId " + update.getMessage().getChatId() + ":\n" + "\t" + update.getMessage().getText());
             String messageText = update.getMessage().getText();
             long chatId = update.getMessage().getChatId();
 
-            switch (messageText) {
-                case "/start" -> startCommandReceived(chatId, update.getMessage().getChat().getFirstName(), kozel);
-                case "/fortune" -> sendMessage(chatId, "Удача повышена на 3%");
-                case "/hangout" -> sendMessage(chatId, "Уже в пути");
-                case "/smash" -> sendMessage(chatId, "Каждый в мире получил по ебалу");
-                case "/weather" -> {
-                    try {
-                        sendMessage(chatId, weatherInfo());
-                    } catch (IOException e) {
-                        log.error("Error occurred: " + e.getMessage());
-                    }
-                }
-                default -> sendMessage(chatId, "Не знаю такой команды");
+            if (messageText.equalsIgnoreCase("/subscribe")) {
+                subscribers.add(chatId);
+                sendMessage(chatId, "Вы подписались на рассылку!");
+            } else if (messageText.equalsIgnoreCase("/unsubscribe")) {
+                subscribers.remove(chatId);
+                sendMessage(chatId, "Вы отписались от рассылки.");
+            } else {
+                sendMessage(chatId, "Неизвестная команда. Используйте /subscribe или /unsubscribe.");
             }
         }
+    }
 
+    @Scheduled(fixedRate = 60000)
+    private void fetchApiData() throws IOException {
+
+        String apiUrl = "https://coinmarketcap.com/currencies/bitcoin/";
+        Request request = new Request.Builder().url(apiUrl).build();
+
+        try (Response response = httpClient.newCall(request).execute()) {
+            if (response.isSuccessful() && response.body() != null) {
+                Document document = Jsoup.parse(response.body().string());
+                Element targetElement = document.selectXpath("//*[@id=\"section-coin-overview\"]/div[2]/span").first();
+                if (targetElement != null) {
+                    saveRates(targetElement.text());
+                    latestValue = targetElement.text();
+                    System.out.println("Получено новое значение: " + latestValue);
+                } else {
+                    System.out.println("Не удалось найти нужный элемент в HTML.");
+                }
+            }
+        }
+    }
+
+    private void saveRates(String rate) {
+
+        final int MAX_SIZE = 10;
+
+        if (rates.size() >= MAX_SIZE) {
+            rates.remove(0);
+        }
+        try {
+            rates.add(Double.parseDouble(rate.replace("$", "").replace(",", "")));
+            System.out.println(rates);
+        } catch (NumberFormatException e) {
+            e.printStackTrace();
+        } finally {
+            prepareData();
+        }
+    }
+
+    private void prepareData() {
+
+        double change;
+        double threshold = 0.01;
+
+        if (rates.size() >= 2) {
+            try {
+                if (rates.getLast() >= rates.get(rates.size() - 2)) {
+                    change = (rates.getLast() / rates.get(rates.size() - 2) - 1) * 100;
+                    System.out.println("RISE " + String.format("%.5f", change));
+                } else {
+                    change = (rates.getLast() / rates.get(rates.size() - 2) - 1) * 100;
+                    System.out.println("FALL " + String.format("%.5f", change));
+                }
+                if (Math.abs(change) > threshold) {
+                    notifySubscribers(change);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void notifySubscribers(double change) {
+        for (Long chatId : subscribers) {
+            System.out.println("Отправил сообщение в чат " + chatId);
+            try {
+                if (change > 0) {
+                    sendMessage(chatId, "BTC change " + "\uD83D\uDFE2" + " " + String.format("%.5f", change) + "\n" + "Current price " + latestValue);
+                } else {
+                    sendMessage(chatId, "BTC change " + "\uD83D\uDD34" + " " + String.format("%.5f", change) + "\n" + "Current price " + latestValue);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     private void startCommandReceived(long chatId, String name, File file) {
-
-        String answer = "Привет, " + name + "!";
-        sendMessage(chatId, answer);
-        sendPhoto(chatId, file);
-
     }
 
     private void sendMessage(long chatId, String text) {
@@ -78,44 +145,11 @@ public class TelegramBot extends TelegramLongPollingBot {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
         message.setText(text);
-        message.getReplyMarkup();
 
         try {
-
             execute(message);
-            log.info("Response for chatId " + chatId + ":\n" + "\t" + message.getText());
         } catch (TelegramApiException e) {
-            log.error("Error occurred: " + e.getMessage());
+            e.printStackTrace();
         }
     }
-
-    private void sendPhoto(long chatId, File file) {
-
-        SendPhoto photo = new SendPhoto();
-        photo.setChatId(chatId);
-        photo.setPhoto(new InputFile(file));
-
-        try {
-
-            execute(photo);
-            log.info("Response for chatId " + chatId + ":\n" + "\t" + photo.getFile().getAttachName());
-        } catch (TelegramApiException e) {
-            log.error("Error occurred: " + e.getMessage());
-        }
-    }
-
-    private String weatherInfo() throws IOException {
-
-        String webPage = "https://yandex.ru/pogoda/saratov";
-        Document doc = Jsoup.parse(Jsoup.connect(webPage).get().html());
-        String temperature = doc.getElementsByClass("temp__value temp__value_with-unit").first().text();
-        String time = doc.getElementsByClass("time fact__time").first().text();
-        String fact = doc.getElementsByClass("link__feelings fact__feelings").first().text();
-        String title = doc.getElementsByClass("title title_level_1 header-title__title").first().text();
-
-
-        return title + "\n" + time + "\nТемпература " + temperature + "\n" + fact;
-
-    }
-//span[@class="wind-speed"]
 }
