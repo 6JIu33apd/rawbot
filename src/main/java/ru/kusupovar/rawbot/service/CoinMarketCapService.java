@@ -15,19 +15,19 @@ public class CoinMarketCapService implements CryptoService {
     }
 
     @Override
-    public double getLatestPrice() {
+    public double getLatestPrice(String symbol) {
         String endpoint = "/v2/cryptocurrency/quotes/latest";
-        String id = "1";
 
         Response response = RestAssured.given()
                 .header("X-CMC_PRO_API_KEY", botConfig.getKey())
-                .queryParam("id", id)
+                .queryParam("symbol", symbol)
                 .get(botConfig.getUrl() + endpoint);
 
         if (response.getStatusCode() == 200) {
             JSONObject jsonResponse = new JSONObject(response.getBody().asString());
             return jsonResponse.getJSONObject("data")
-                    .getJSONObject(id)
+                    .getJSONArray(symbol)
+                    .getJSONObject(0)
                     .getJSONObject("quote")
                     .getJSONObject("USD")
                     .getDouble("price");

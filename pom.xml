@@ -9,71 +9,43 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>ru.kusupovar</groupId>
-    <artifactId>rawbot</artifactId>
+    <artifactId>cryptanalyst</artifactId>
     <version>1.0.0-SNAPSHOT</version>
-    <name>rawbot</name>
-    <description>Demo project RawBot</description>
+    <name>cryptanalyst</name>
+    <description>Pocket crypto</description>
     <properties>
         <java.version>17</java.version>
         <telegram.version>6.9.7.1</telegram.version>
     </properties>
     <dependencies>
-
         <dependency>
             <groupId>org.telegram</groupId>
             <artifactId>telegrambots</artifactId>
             <version>${telegram.version}</version>
         </dependency>
-
+        <dependency>
+            <groupId>org.telegram</groupId>
+            <artifactId>telegrambots-client</artifactId>
+            <version>8.2.0</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter</artifactId>
         </dependency>
-
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
-
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
-
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-jpa</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-maven-plugin</artifactId>
-            <version>3.4.2</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.mysql</groupId>
-            <artifactId>mysql-connector-j</artifactId>
-            <version>8.0.32</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.vdurmont</groupId>
-            <artifactId>emoji-java</artifactId>
-            <version>5.1.1</version>
-        </dependency>
-
         <dependency>
             <groupId>org.jsoup</groupId>
             <artifactId>jsoup</artifactId>
             <version>1.18.3</version>
-        </dependency>
-        <dependency>
-            <groupId>com.squareup.okhttp3</groupId>
-            <artifactId>okhttp</artifactId>
-            <version>3.11.0</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/io.rest-assured/rest-assured -->
         <dependency>
@@ -81,7 +53,11 @@
             <artifactId>rest-assured</artifactId>
             <version>5.5.0</version>
         </dependency>
-
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>20250107</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -89,6 +65,7 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>3.4.2</version>
             </plugin>
         </plugins>
     </build>
